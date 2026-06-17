@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🚀 SpaceBot - IA + NASA</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <style>
+        body {
+            background: linear-gradient(135deg, #0a0a2e 0%, #1a1a4e 50%, #2a2a6e 100%);
+            font-family: system-ui, -apple-system, sans-serif;
+        }
+        .chat-container {
+            height: 70vh;
+            overflow-y: auto;
+            scrollbar-width: thin;
+        }
+        .message-user {
+            background: #3b82f6;
+            border-radius: 18px 18px 4px 18px;
+        }
+        .message-assistant {
+            background: #1f2937;
+            border-radius: 18px 18px 18px 4px;
+        }
+        .star-bg {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: transparent;
+            pointer-events: none;
+            z-index: -1;
+            opacity: 0.4;
+        }
+    </style>
+</head>
+<body class="text-white min-h-screen">
+    <div class="star-bg"></div>
+    
+    <div class="max-w-4xl mx-auto p-4">
+        <!-- Header -->
+        <div class="flex items-center justify-between mb-6 pt-6">
+            <div class="flex items-center gap-3">
+                <div class="text-5xl">🚀</div>
+                <div>
+                    <h1 class="text-4xl font-bold tracking-tight">SpaceBot</h1>
+                    <p class="text-blue-300 text-sm">NASA • ESA • CNES • Groq</p>
+                </div>
+            </div>
+            <div class="text-right">
+                <button onclick="clearChat()" 
+                        class="px-4 py-2 bg-red-600 hover:bg-red-700 rounded-lg text-sm flex items-center gap-2">
+                    <i class="fas fa-trash"></i> Effacer
+                </button>
+            </div>
+        </div>
+
+        <!-- API Key Input -->
+        <div class="bg-gray-900 border border-gray-700 rounded-2xl p-4 mb-6">
+            <label class="block text-sm text-gray-400 mb-2">Clé API Groq</label>
+            <div class="flex gap-3">
+                <input type="password" id="groq-key" 
+                       class="flex-1 bg-gray-800 border border-gray-600 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-blue-500"
+                       placeholder="gsk_xxxxxxxxxxxxxxxxxxxx">
+                <button onclick="saveKey()" 
+                        class="px-6 bg-blue-600 hover:bg-blue-700 rounded-xl font-medium">
+                    Sauvegarder
+                </button>
+            </div>
+            <p class="text-xs text-gray-500 mt-2">Obtiens ta clé sur <a href="https://console.groq.com/keys" target="_blank" class="text-blue-400 underline">console.groq.com</a></p>
+        </div>
+
+        <!-- Chat Area -->
+        <div id="chat" class="chat-container bg-gray-950 border border-gray-700 rounded-3xl p-6 mb-6 space-y-6"></div>
+
+        <!-- Input Area -->
+        <div class="bg-gray-900 border border-gray-700 rounded-3xl p-2">
+            <div class="flex gap-3">
+                <input type="text" id="user-input" 
+                       class="flex-1 bg-transparent border-0 focus:outline-none px-6 py-5 text-lg placeholder-gray-500"
+                       placeholder="Demande-moi quelque chose sur l'espace... (ex: photo du jour, astéroïdes...)">
+                <button onclick="sendMessage()" 
+                        class="bg-blue-600 hover:bg-blue-700 w-14 h-14 rounded-2xl flex items-center justify-center text-xl transition">
+                    <i class="fas fa-paper-plane"></i>
+                </button>
+            </div>
+        </div>
+
+        <div class="text-center text-xs text-gray-500 mt-4">
+            SpaceBot utilise Groq + APIs NASA en temps réel
+        </div>
+    </div>
+
+    <script>
+        let groqKey = localStorage.getItem('groqKey') || '';
+        if (groqKey) document.getElementById('groq-key').value = groqKey;
+
+        function saveKey() {
+            groqKey = document.getElementById('groq-key').value.trim();
+            if (groqKey) {
+                localStorage.setItem('groqKey', groqKey);
+                alert("✅ Clé Groq sauvegardée !");
+            } else {
+                alert("Veuillez entrer une clé Groq");
+            }
+        }
+
+        function addMessage(role, content) {
+            const chat = document.getElementById('chat');
+            const msgDiv = document.createElement('div');
+            msgDiv.className = `flex ${role === 'user' ? 'justify-end' : 'justify-start'}`;
+            
+            msgDiv.innerHTML = `
+                <div class="max-w-[80%] p-4 ${role === 'user' ? 'message-user' : 'message-assistant'}">
+                    ${content}
+                </div>
+            `;
+            chat.appendChild(msgDiv);
+            chat.scrollTop = chat.scrollHeight;
+        }
+
+        async function getSpaceContext(prompt) {
+            let context = "";
+            
+            const lower = prompt.toLowerCase();
+            
+            if (lower.includes("photo") || lower.includes("image") || lower.includes("apod")) {
+                try {
+                    const res = await fetch("https://api.nasa.gov/planetary/apod?api_key=DEMO_KEY");
+                    const data = await res.json();
+                    context += `\n\n📸 **Image du jour NASA** : ${data.title}\n`;
+                    context += `${data.explanation.substring(0, 400)}...\n`;
+                    context += `Lien: ${data.url}`;
+                } catch(e) {}
+            }
+            
+            if (lower.includes("astéroïde") || lower.includes("asteroid") || lower.includes("near")) {
+                try {
+                    const res = await fetch("https://api.nasa.gov/neo/rest/v1/feed?api_key=DEMO_KEY");
+                    const data = await res.json();
+                    context += "\n\n🌍 **Astéroïdes proches** :\n";
+                    const today = Object.keys(data.near_earth_objects)[0];
+                    const neos = data.near_earth_objects[today].slice(0, 3);
+                    neos.forEach(neo => {
+                        context += `- ${neo.name} (${Math.round(neo.estimated_diameter.meters.estimated_diameter_max)}m)\n`;
+                    });
+                } catch(e) {}
+            }
+            
+            return context;
+        }
+
+        async function sendMessage() {
+            const input = document.getElementById('user-input');
+            const message = input.value.trim();
+            if (!message) return;
+            if (!groqKey) {
+                alert("⚠️ Veuillez d'abord entrer votre clé Groq");
+                return;
+            }
+
+            addMessage('user', message);
+            input.value = '';
+
+            // Loading indicator
+            const loadingId = 'loading-' + Date.now();
+            const chat = document.getElementById('chat');
+            const loadingDiv = document.createElement('div');
+            loadingDiv.id = loadingId;
+            loadingDiv.className = 'flex justify-start';
+            loadingDiv.innerHTML = `
+                <div class="max-w-[80%] p-4 bg-gray-800 rounded-3xl">
+                    <i class="fas fa-spinner fa-spin"></i> Recherche dans l'univers...
+                </div>
+            `;
+            chat.appendChild(loadingDiv);
+            chat.scrollTop = chat.scrollHeight;
+
+            try {
+                const context = await getSpaceContext(message);
+                
+                const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+                    method: "POST",
+                    headers: {
+                        "Authorization": `Bearer ${groqKey}`,
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify({
+                        model: "llama-3.3-70b-versatile",
+                        messages: [
+                            {
+                                role: "system",
+                                content: "Tu es SpaceBot, un expert passionné de l'espace. Réponds de façon claire, enthousiaste et précise en utilisant les données réelles de la NASA, ESA et CNES."
+                            },
+                            {
+                                role: "user",
+                                content: message + (context ? "\n\nContexte NASA récent :" + context : "")
+                            }
+                        ],
+                        temperature: 0.7,
+                        max_tokens: 1024
+                    })
+                });
+
+                const data = await response.json();
+                const answer = data.choices[0].message.content;
+
+                // Remove loading
+                document.getElementById(loadingId).remove();
+                addMessage('assistant', answer.replace(/\n/g, '<br>'));
+            } catch (error) {
+                document.getElementById(loadingId).remove();
+                addMessage('assistant', "❌ Erreur : " + error.message + "<br><br>Vérifie ta clé Groq ou ta connexion.");
+            }
+        }
+
+        function clearChat() {
+            if (confirm("Effacer toute la conversation ?")) {
+                document.getElementById('chat').innerHTML = '';
+            }
+        }
+
+        // Allow Enter key
+        document.getElementById('user-input').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') sendMessage();
+        });
+
+        // Welcome message
+        window.onload = () => {
+            addMessage('assistant', `👋 Bonjour ! Je suis <strong>SpaceBot</strong>, ton expert en exploration spatiale.<br><br>
+            Pose-moi des questions sur :<br>
+            • La photo du jour NASA<br>
+            • Les astéroïdes proches de la Terre<br>
+            • La météo spatiale<br>
+            • Des missions ESA ou CNES<br><br>
+            Commence en entrant ta clé Groq ci-dessus ! 🌌`);
+        };
+    </script>
+</body>
+</html>
